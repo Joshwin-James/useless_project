@@ -75,7 +75,7 @@ export function ResultsDashboard({
           </div>
           <div className="sticker bg-sky p-6 rotate-[1.5deg] transition-transform hover:-translate-y-1">
             <div className="font-display text-4xl font-extrabold">
-              {latestResult.error.toFixed(1)} {isPush ? "px" : "deg"}
+              {latestResult.error.toFixed(1)} {isPush ? "px" : "°"}
             </div>
             <div className="mt-1 font-display text-xl font-extrabold uppercase">MISS BY</div>
           </div>
@@ -120,21 +120,21 @@ export function ResultsDashboard({
           <div className="flex items-center justify-between font-bold">
             <span>predicted {isPush ? "stop" : "direction"}</span>
             <span>
-              {latestResult.predictedValue.toFixed(1)} {isPush ? "cm" : "deg"}
+              {latestResult.predictedValue.toFixed(1)} {isPush ? "cm" : "°"}
             </span>
           </div>
           <div className="mt-2 h-6 w-full overflow-hidden rounded-full border-[3px] border-foreground bg-card">
             <div
               className="h-full bg-spud"
               style={{
-                width: `${Math.min(100, (latestResult.predictedValue / Math.max(latestResult.predictedValue, latestResult.actualValue)) * 100)}%`,
+                width: `${Math.min(100, (latestResult.predictedValue / Math.max(latestResult.predictedValue, latestResult.actualValue || 1)) * 100)}%`,
               }}
             />
           </div>
           <div className="mt-4 flex items-center justify-between font-bold">
             <span>actual {isPush ? "stop" : "direction"}</span>
             <span>
-              {latestResult.actualValue.toFixed(1)} {isPush ? "cm" : "deg"}
+              {latestResult.actualValue.toFixed(1)} {isPush ? "cm" : "°"}
             </span>
           </div>
           <div className="mt-2 h-6 w-full overflow-hidden rounded-full border-[3px] border-foreground bg-card">
@@ -214,7 +214,7 @@ export function ResultsDashboard({
                     <div className="flex flex-col">
                       <span className="text-xs font-bold uppercase text-muted-foreground">Error</span>
                       <span className="font-display text-lg font-bold">
-                        {r.error.toFixed(1)} {r.mode === "push" ? "px" : "deg"}
+                        {r.error.toFixed(1)} {r.mode === "push" ? "px" : "°"}
                       </span>
                     </div>
                     <div className="flex flex-col">

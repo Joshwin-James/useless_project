@@ -21,9 +21,11 @@ export interface ExperimentResult {
   accuracyScore: number; // 0-100
   mood?: PotatoMood;
   moodExplanation?: string;
+  failed?: boolean;
+  failureReason?: string;
 }
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export function useExperimentHistory() {
   const [history, setHistory] = useState<ExperimentResult[]>([]);
@@ -39,18 +41,18 @@ export function useExperimentHistory() {
     }
   }, []);
 
-  const addResult = (result: ExperimentResult) => {
+  const addResult = useCallback((result: ExperimentResult) => {
     setHistory((prev) => {
       const next = [result, ...prev].slice(0, 20); // Keep last 20
       localStorage.setItem("potato_archives", JSON.stringify(next));
       return next;
     });
-  };
+  }, []);
 
-  const clearHistory = () => {
+  const clearHistory = useCallback(() => {
     setHistory([]);
     localStorage.removeItem("potato_archives");
-  };
+  }, []);
 
   return { history, addResult, clearHistory };
 }

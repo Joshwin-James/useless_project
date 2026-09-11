@@ -1,12 +1,40 @@
 /**
- * Unwraps an angle (0-360) to prevent discontinuity when wrapping around 0/360.
+ * Unwraps an angle (0-360) into a continuous accumulating value across frames.
+ * Accurately handles wraparound (0° <-> 360°) for any accumulated angle.
  */
 export function unwrapAngle(currentDeg: number, previousUnwrappedDeg: number): number {
-  const diff = currentDeg - (previousUnwrappedDeg % 360);
-  let adjustedDiff = diff;
-  if (diff > 180) adjustedDiff -= 360;
-  if (diff < -180) adjustedDiff += 360;
-  return previousUnwrappedDeg + adjustedDiff;
+  const curNorm = ((currentDeg % 360) + 360) % 360;
+  const prevNorm = ((previousUnwrappedDeg % 360) + 360) % 360;
+  let diff = curNorm - prevNorm;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  return previousUnwrappedDeg + diff;
+}
+
+/**
+ * Normalizes any angle in degrees into [0, 360).
+ */
+export function normalizeAngle360(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
+/**
+ * Calculates circular distance error between two angles (0-180°).
+ */
+export function calculateCircularError(predictedDeg: number, actualDeg: number): number {
+  const p = normalizeAngle360(predictedDeg);
+  const a = normalizeAngle360(actualDeg);
+  const rawDiff = Math.abs(p - a);
+  return Math.min(rawDiff, 360 - rawDiff);
+}
+
+/**
+ * Mathematically derives accuracy score (0-100%) from circular angular error (0-180°).
+ * 0° error = 100% accuracy, 180° error = 0% accuracy.
+ */
+export function calculateAccuracyFromError(errorDeg: number): number {
+  const clamped = Math.max(0, Math.min(180, errorDeg));
+  return Math.max(0, Math.min(100, Math.round((1 - clamped / 180) * 1000) / 10));
 }
 
 /**

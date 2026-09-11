@@ -110,7 +110,15 @@ function Index() {
   }, []);
 
   if (isExperimenting) {
-    return <ExperimentRunner mode={experimentMode} onExit={() => setIsExperimenting(false)} />;
+    return (
+      <ExperimentRunner
+        mode={experimentMode}
+        onExit={(finalMode) => {
+          if (finalMode) setExperimentMode(finalMode);
+          setIsExperimenting(false);
+        }}
+      />
+    );
   }
 
   return (

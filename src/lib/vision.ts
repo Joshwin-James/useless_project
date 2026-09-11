@@ -1,8 +1,34 @@
 export type Point = { x: number; y: number };
 export type BoundingBox = { minX: number; minY: number; maxX: number; maxY: number };
+export type RGB = { r: number; g: number; b: number };
+export type HSV = { h: number; s: number; v: number };
 
-function colorDistance(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number) {
+export function colorDistance(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number {
   return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
+}
+
+export function rgbToHsv(r: number, g: number, b: number): HSV {
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === rNorm) {
+      h = ((gNorm - bNorm) / d) % 6;
+    } else if (max === gNorm) {
+      h = (bNorm - rNorm) / d + 2;
+    } else {
+      h = (rNorm - gNorm) / d + 4;
+    }
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+  }
+  const s = max === 0 ? 0 : Math.round((d / max) * 100);
+  const v = Math.round(max * 100);
+  return { h, s, v };
 }
 
 function isDefaultPotatoColor(r: number, g: number, b: number): boolean {
@@ -14,7 +40,7 @@ export function findPotatoBlob(
   imageData: ImageData,
   width: number,
   height: number,
-  targetColor: { r: number; g: number; b: number } | null
+  targetColor: RGB | null
 ): { centroid: Point; box: BoundingBox } | null {
   const data = imageData.data;
 
@@ -30,8 +56,21 @@ export function findPotatoBlob(
 
   const getIdx = (gx: number, gy: number) => gy * gridW + gx;
 
+  const targetHsv = targetColor ? rgbToHsv(targetColor.r, targetColor.g, targetColor.b) : null;
+
   const matchesPixel = (r: number, g: number, b: number): boolean => {
-    if (targetColor) {
+    if (targetColor && targetHsv) {
+      const pixelHsv = rgbToHsv(r, g, b);
+      const rawHueDiff = Math.abs(pixelHsv.h - targetHsv.h);
+      const circularHueDiff = Math.min(rawHueDiff, 360 - rawHueDiff);
+
+      // If target is very desaturated, hue is noisy; otherwise use tight hue
+      const hueMatch = targetHsv.s < 12 ? Math.abs(pixelHsv.v - targetHsv.v) <= 45 : circularHueDiff <= 28;
+      const satMatch = Math.abs(pixelHsv.s - targetHsv.s) <= 48;
+      const valMatch = Math.abs(pixelHsv.v - targetHsv.v) <= 50;
+
+      if (hueMatch && satMatch && valMatch) return true;
+      // Fallback Euclidean color distance for lighting extremes
       return colorDistance(r, g, b, targetColor.r, targetColor.g, targetColor.b) <= 65;
     }
     return isDefaultPotatoColor(r, g, b);
@@ -120,12 +159,13 @@ export function findAsymmetricFeature(
   imageData: ImageData,
   width: number,
   box: BoundingBox,
+  centroid?: Point
 ): Point | null {
   const data = imageData.data;
 
   // Inset the box to avoid rim shadows
-  const insetX = (box.maxX - box.minX) * 0.15;
-  const insetY = (box.maxY - box.minY) * 0.15;
+  const insetX = (box.maxX - box.minX) * 0.12;
+  const insetY = (box.maxY - box.minY) * 0.12;
 
   const startX = Math.floor(box.minX + insetX);
   const endX = Math.floor(box.maxX - insetX);
@@ -134,14 +174,30 @@ export function findAsymmetricFeature(
 
   if (endX <= startX || endY <= startY) return null;
 
+  const cX = centroid ? centroid.x : (box.minX + box.maxX) / 2;
+  const cY = centroid ? centroid.y : (box.minY + box.maxY) / 2;
+  const approxRadius = Math.max(8, Math.min(box.maxX - box.minX, box.maxY - box.minY) / 2);
+  const minCentroidDist = Math.max(6, approxRadius * 0.18);
+
   let bestScore = -1;
   let bestPoint: Point | null = null;
+  let fallbackPoint: Point | null = null;
+  let maxDistSoFar = -1;
 
   // Step size for performance
   const step = 2;
 
   for (let y = startY + step; y < endY - step; y += step) {
     for (let x = startX + step; x < endX - step; x += step) {
+      const distFromCentroid = Math.hypot(x - cX, y - cY);
+      if (distFromCentroid > maxDistSoFar) {
+        maxDistSoFar = distFromCentroid;
+        fallbackPoint = { x, y };
+      }
+
+      // Feature MUST be distinct from the centroid
+      if (distFromCentroid < minCentroidDist) continue;
+
       const i = (y * width + x) * 4;
       const luma = 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
 
@@ -159,8 +215,7 @@ export function findAsymmetricFeature(
       const avgNeighborLuma = (l1 + l2 + l3 + l4) / 4;
       const contrast = Math.abs(avgNeighborLuma - luma);
 
-      // We want dark spots with high contrast
-      // Invert luma so dark is high score
+      // Dark spot / sticker with high contrast
       const darkness = 255 - luma;
       const score = darkness * 0.7 + contrast * 0.3;
 
@@ -171,5 +226,6 @@ export function findAsymmetricFeature(
     }
   }
 
-  return bestPoint;
+  // If no high-contrast dark spot was found, use the farthest interior point from centroid
+  return bestPoint || fallbackPoint;
 }
