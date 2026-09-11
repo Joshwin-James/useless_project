@@ -178,6 +178,8 @@ export function findAsymmetricFeature(
   const cY = centroid ? centroid.y : (box.minY + box.maxY) / 2;
   const approxRadius = Math.max(8, Math.min(box.maxX - box.minX, box.maxY - box.minY) / 2);
   const minCentroidDist = Math.max(6, approxRadius * 0.18);
+  const halfW = Math.max(1, (box.maxX - box.minX) / 2);
+  const halfH = Math.max(1, (box.maxY - box.minY) / 2);
 
   let bestScore = -1;
   let bestPoint: Point | null = null;
@@ -190,6 +192,12 @@ export function findAsymmetricFeature(
   for (let y = startY + step; y < endY - step; y += step) {
     for (let x = startX + step; x < endX - step; x += step) {
       const distFromCentroid = Math.hypot(x - cX, y - cY);
+
+      // Feature MUST be strictly inside the potato body (elliptical boundary check)
+      // This prevents detecting dark shadows or dark background in the corners of the bounding box
+      const normDist = Math.pow((x - cX) / halfW, 2) + Math.pow((y - cY) / halfH, 2);
+      if (normDist > 0.82) continue;
+
       if (distFromCentroid > maxDistSoFar) {
         maxDistSoFar = distFromCentroid;
         fallbackPoint = { x, y };
@@ -199,7 +207,14 @@ export function findAsymmetricFeature(
       if (distFromCentroid < minCentroidDist) continue;
 
       const i = (y * width + x) * 4;
-      const luma = 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
+      const r = data[i]!;
+      const g = data[i + 1]!;
+      const b = data[i + 2]!;
+
+      // Candidate feature MUST be on the potato body (rejects dark table or shadow pixels)
+      if (!isDefaultPotatoColor(r, g, b) && !(r > 40 && g > 25 && b > 10 && r >= g)) continue;
+
+      const luma = 0.299 * r + 0.587 * g + 0.114 * b;
 
       // Calculate local contrast by sampling neighbors
       const n1 = ((y - step) * width + x) * 4;
