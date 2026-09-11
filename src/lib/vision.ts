@@ -1,17 +1,20 @@
 export type Point = { x: number; y: number };
 export type BoundingBox = { minX: number; minY: number; maxX: number; maxY: number };
 
-// Helper to check if a pixel is "potato colored" (brown/yellowish)
-// This is very rudimentary and assumes decent lighting
-function isPotatoColor(r: number, g: number, b: number): boolean {
-  // Mostly looking for warm colors where R > G > B, but not too extreme
-  return r > 80 && r < 240 && g > 60 && g < 220 && b > 20 && b < 160 && r > g && g > b;
+function colorDistance(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number) {
+  return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
+}
+
+function isDefaultPotatoColor(r: number, g: number, b: number): boolean {
+  // Warm brown/tan/yellowish potato spectrum
+  return r > 50 && r < 245 && g > 35 && g < 225 && b > 10 && b < 185 && r >= g && g >= b - 20;
 }
 
 export function findPotatoBlob(
   imageData: ImageData,
   width: number,
   height: number,
+  targetColor: { r: number; g: number; b: number } | null
 ): { centroid: Point; box: BoundingBox } | null {
   const data = imageData.data;
 
@@ -21,12 +24,18 @@ export function findPotatoBlob(
   let bestBlob = null;
   let bestArea = 0;
 
-  // We'll do a simple iterative flood fill on the downsampled grid to find the largest connected component
   const gridW = Math.floor(width / step);
   const gridH = Math.floor(height / step);
   const visited = new Uint8Array(gridW * gridH);
 
   const getIdx = (gx: number, gy: number) => gy * gridW + gx;
+
+  const matchesPixel = (r: number, g: number, b: number): boolean => {
+    if (targetColor) {
+      return colorDistance(r, g, b, targetColor.r, targetColor.g, targetColor.b) <= 65;
+    }
+    return isDefaultPotatoColor(r, g, b);
+  };
 
   for (let gy = 0; gy < gridH; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
@@ -36,7 +45,7 @@ export function findPotatoBlob(
       const py = gy * step;
       const i = (py * width + px) * 4;
 
-      if (isPotatoColor(data[i]!, data[i + 1]!, data[i + 2]!)) {
+      if (matchesPixel(data[i]!, data[i + 1]!, data[i + 2]!)) {
         // Start flood fill
         const queue: Point[] = [{ x: gx, y: gy }];
         visited[getIdx(gx, gy)] = 1;
@@ -73,7 +82,7 @@ export function findPotatoBlob(
               if (!visited[nIdx]) {
                 visited[nIdx] = 1;
                 const pi = (ny * step * width + nx * step) * 4;
-                if (isPotatoColor(data[pi]!, data[pi + 1]!, data[pi + 2]!)) {
+                if (matchesPixel(data[pi]!, data[pi + 1]!, data[pi + 2]!)) {
                   queue.push({ x: nx, y: ny });
                 }
               }
@@ -81,8 +90,14 @@ export function findPotatoBlob(
           }
         }
 
-        if (area > bestArea && area > 10) {
-          // arbitrary min size
+        const boxW = (maxX - minX) * step;
+        const boxH = (maxY - minY) * step;
+        
+        // Aspect ratio sanity check: potato shouldn't be a needle (< 1:5 or > 5:1)
+        const aspectRatio = boxW > 0 && boxH > 0 ? boxW / boxH : 0;
+        const isSaneShape = aspectRatio > 0.15 && aspectRatio < 6.0;
+
+        if (area > bestArea && area > 8 && isSaneShape) {
           bestArea = area;
           bestBlob = {
             centroid: { x: (sumX / area) * step, y: (sumY / area) * step },

@@ -1,6 +1,14 @@
-export type ExperimentMode = "push" | "spin";
+export type ExperimentMode = "push" | "spin" | "mood";
 export type ExperimentStatus =
-  "idle" | "calibrating" | "ready" | "tracking" | "predicting" | "stopped";
+  | "idle"
+  | "calibrating"
+  | "ready"
+  | "tracking"
+  | "predicting"
+  | "scanning"
+  | "stopped";
+
+export type PotatoMood = "HAPPY" | "SAD" | "RAGEBAITED";
 
 export interface ExperimentResult {
   id: string;
@@ -11,6 +19,8 @@ export interface ExperimentResult {
   actualValue: number; // cm or degrees
   error: number; // difference
   accuracyScore: number; // 0-100
+  mood?: PotatoMood;
+  moodExplanation?: string;
 }
 
 import { useState, useEffect } from "react";

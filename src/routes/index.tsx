@@ -174,30 +174,36 @@ function Index() {
           <PotatoEyes />
         </div>
 
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <div className="flex items-center gap-2 rounded-full border-[3px] border-foreground bg-cream p-1">
+        <div className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row">
+          <div className="flex w-full sm:w-auto flex-wrap justify-center items-center gap-2 rounded-full sm:rounded-full border-[3px] border-foreground bg-cream p-1">
             <button
               onClick={() => setExperimentMode("push")}
-              className={`rounded-full px-4 py-2 font-display text-sm font-extrabold uppercase transition-colors ${experimentMode === "push" ? "bg-butter text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`rounded-full flex-1 sm:flex-none px-4 py-3 sm:py-2 min-h-[48px] sm:min-h-0 font-display text-sm font-extrabold uppercase transition-colors ${experimentMode === "push" ? "bg-butter text-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               Push Mode
             </button>
             <button
               onClick={() => setExperimentMode("spin")}
-              className={`rounded-full px-4 py-2 font-display text-sm font-extrabold uppercase transition-colors ${experimentMode === "spin" ? "bg-butter text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`rounded-full flex-1 sm:flex-none px-4 py-3 sm:py-2 min-h-[48px] sm:min-h-0 font-display text-sm font-extrabold uppercase transition-colors ${experimentMode === "spin" ? "bg-butter text-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               Spin Mode
+            </button>
+            <button
+              onClick={() => setExperimentMode("mood")}
+              className={`rounded-full flex-1 sm:flex-none px-4 py-3 sm:py-2 min-h-[48px] sm:min-h-0 font-display text-sm font-extrabold uppercase transition-colors ${experimentMode === "mood" ? "bg-butter text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              Mood Potato
             </button>
           </div>
           <button
             onClick={() => setIsExperimenting(true)}
-            className="sticker bg-bubblegum px-7 py-3 font-display text-lg font-extrabold uppercase transition-transform hover:-translate-y-1 active:translate-y-1"
+            className="sticker w-full sm:w-auto min-h-[48px] bg-bubblegum px-7 py-3 font-display text-lg font-extrabold uppercase transition-transform hover:-translate-y-1 active:translate-y-1"
           >
             Run an experiment
           </button>
           <a
             href="#results"
-            className="sticker bg-mint px-7 py-3 font-display text-lg font-extrabold uppercase transition-transform hover:-translate-y-1 active:translate-y-1"
+            className="sticker flex w-full sm:w-auto min-h-[48px] items-center justify-center bg-mint px-7 py-3 font-display text-lg font-extrabold uppercase transition-transform hover:-translate-y-1 active:translate-y-1"
           >
             See the data
           </a>
@@ -263,7 +269,7 @@ function Index() {
           <p className="mt-3 font-medium">
             Last night&apos;s tabletop run. No potatoes complained.
           </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
             {[
               {
                 pct: "1.42 m/s",
