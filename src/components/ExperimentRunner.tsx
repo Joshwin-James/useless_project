@@ -70,6 +70,7 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
   const [scanStep, setScanStep] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [calibratedColor, setCalibratedColor] = useState<{ r: number; g: number; b: number } | null>(null);
 
   const { history, addResult, clearHistory } = useExperimentHistory();
 
@@ -97,6 +98,13 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
   const stopDwellFrames = useRef<number>(0);
   const experimentStartTimeRef = useRef<number | null>(null);
   const targetColorRef = useRef<{ r: number; g: number; b: number } | null>(null);
+  // For actual measurement: track start centroid and last-seen centroid in push mode
+  const startCentroidRef = useRef<{ x: number; y: number } | null>(null);
+  const lastKnownCentroidRef = useRef<{ x: number; y: number } | null>(null);
+  // Whether blob was found in this frame (to avoid polluting dataLog with zero-vel frames)
+  const blobFoundRef = useRef<boolean>(false);
+  // In spin mode: stores the predicted final angle once we have enough data (frozen early)
+  const frozenPredictedAngleRef = useRef<number | null>(null);
 
   const cleanup = useCallback(() => {
     mountIdRef.current++;
@@ -122,6 +130,7 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
   const startCalibrate = () => {
     setStatus("calibrating");
     targetColorRef.current = null;
+    setCalibratedColor(null);
   };
 
   const handleRestart = () => {
@@ -138,6 +147,10 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
     peakValueRef.current = 0;
     stopDwellFrames.current = 0;
     experimentStartTimeRef.current = null;
+    startCentroidRef.current = null;
+    lastKnownCentroidRef.current = null;
+    blobFoundRef.current = false;
+    frozenPredictedAngleRef.current = null;
     setTimeLeft(8.0);
     setStatus("ready");
     initCamera();
@@ -274,11 +287,13 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
         b += imgData.data[i + 2]!;
       }
       const pixels = imgData.data.length / 4;
-      targetColorRef.current = {
+      const sampled = {
         r: Math.round(r / pixels),
         g: Math.round(g / pixels),
         b: Math.round(b / pixels),
       };
+      targetColorRef.current = sampled;
+      setCalibratedColor(sampled); // drive the visible swatch
 
       if (modeRef.current === "mood") {
         setStatus("scanning");
@@ -286,7 +301,7 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
         setStatus("ready");
       }
     },
-    [],
+    [setCalibratedColor],
   );
 
   // Main Tracking Loop
@@ -321,6 +336,7 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       let currentVelocity = 0;
+      blobFoundRef.current = false; // reset each frame
 
       // Detect potato in ALL active states!
       if (
@@ -334,6 +350,8 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
         const blob = findPotatoBlob(imageData, canvas.width, canvas.height, targetColorRef.current);
 
         if (blob) {
+          blobFoundRef.current = true;
+          lastKnownCentroidRef.current = blob.centroid;
           if (modeRef.current === "mood") {
             // High-tech green sensor reticle around blob
             ctx.strokeStyle = "#4ade80";
@@ -504,6 +522,7 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
                 ctx.stroke();
 
                 // Predicted final angle pointer (sky blue dashed)
+                // Freeze prediction the FIRST time we have enough data (so predicted ≠ actual at stop time)
                 if (dataLog.current.length >= 10 && peakValueRef.current > 20) {
                   const decel = estimateDeceleration(dataLog.current);
                   if (decel < 0) {
@@ -511,6 +530,11 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
                       peakValueRef.current,
                       Math.abs(decel),
                     );
+                    // Freeze prediction once (don't keep updating it — that makes it always near actual)
+                    if (frozenPredictedAngleRef.current === null) {
+                      const rawPredicted = currentAngle + predictedRemaining;
+                      frozenPredictedAngleRef.current = ((rawPredicted % 360) + 360) % 360;
+                    }
                     const predictedAngle = currentAngle + predictedRemaining;
                     ctx.strokeStyle = "#38bdf8";
                     ctx.setLineDash([5, 5]);
@@ -548,12 +572,17 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
               peakValueRef.current = 0;
               stopDwellFrames.current = 0;
               experimentStartTimeRef.current = now;
+              // Capture where the potato IS right now as the start position
+              startCentroidRef.current = { ...blob.centroid };
               setShowResultModal(true);
             }
 
             if (statusRef.current === "tracking" || statusRef.current === "predicting") {
-              dataLog.current.push({ t: now / 1000, v: currentVelocity });
-              if (dataLog.current.length > 50) dataLog.current.shift();
+              // Only log to dataLog when blob is visible — don't pollute with 0-vel frames
+              if (blobFoundRef.current && currentVelocity > 0) {
+                dataLog.current.push({ t: now / 1000, v: currentVelocity });
+                if (dataLog.current.length > 50) dataLog.current.shift();
+              }
 
               if (currentVelocity > peakValueRef.current) {
                 peakValueRef.current = currentVelocity;
@@ -579,21 +608,45 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
                   ? degreesPerSecToRPM(peakValueRef.current)
                   : peakValueRef.current;
                 const decel = estimateDeceleration(dataLog.current);
-                let predicted = predictStoppingAmount(peakValueRef.current, Math.abs(decel));
-                let actual = predicted * (0.82 + Math.random() * 0.36);
+                const stoppingAmount = predictStoppingAmount(peakValueRef.current, Math.abs(decel) || 1);
 
+                let predicted: number;
+                let actual: number;
                 let error = 0;
                 let accuracy = 0;
 
                 if (isSpin) {
-                  predicted = (((unwrappedAngleRef.current + predicted) % 360) + 360) % 360;
-                  actual = (((unwrappedAngleRef.current + actual) % 360) + 360) % 360;
+                  // SPIN MODE:
+                  // actual = where it IS right now (mod 360) — the true measured final angle
+                  // predicted = the angle we predicted EARLY in the spin (frozen), or best estimate
+                  const actualFacing = ((unwrappedAngleRef.current % 360) + 360) % 360;
+                  actual = actualFacing;
+                  if (frozenPredictedAngleRef.current !== null) {
+                    // Use the prediction we made early in the spin
+                    predicted = frozenPredictedAngleRef.current;
+                  } else {
+                    // Spin ended too quickly for a good prediction — use stoppingAmount-based estimate
+                    predicted = (((actualFacing + stoppingAmount) % 360) + 360) % 360;
+                  }
                   const rawDiff = Math.abs(predicted - actual);
                   error = Math.min(rawDiff, 360 - rawDiff);
                   accuracy = Math.max(0, 100 - (error / 180) * 100);
                 } else {
+                  // PUSH MODE:
+                  // predicted = extrapolated stop distance from trajectory physics
+                  // actual = total distance the centroid actually traveled (real measurement)
+                  const start = startCentroidRef.current;
+                  const last = lastKnownCentroidRef.current;
+                  if (start && last) {
+                    const dx = last.x - start.x;
+                    const dy = last.y - start.y;
+                    actual = Math.sqrt(dx * dx + dy * dy); // real pixel distance
+                  } else {
+                    actual = stoppingAmount * 0.4; // fallback if no centroid data
+                  }
+                  predicted = Math.min(260, Math.max(60, stoppingAmount * 0.4));
                   error = Math.abs(actual - predicted);
-                  accuracy = Math.max(0, 100 - (error / Math.max(1, actual)) * 100);
+                  accuracy = Math.max(0, 100 - (error / Math.max(1, predicted)) * 100);
                 }
 
                 const res: ExperimentResult = {
@@ -601,10 +654,10 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
                   timestamp: Date.now(),
                   mode: modeRef.current,
                   peakValue: peak,
-                  predictedValue: predicted,
-                  actualValue: actual,
-                  error,
-                  accuracyScore: accuracy,
+                  predictedValue: Math.round(predicted * 10) / 10,
+                  actualValue: Math.round(actual * 10) / 10,
+                  error: Math.round(error * 10) / 10,
+                  accuracyScore: Math.round(accuracy * 10) / 10,
                 };
 
                 setResult(res);
@@ -744,6 +797,19 @@ export function ExperimentRunner({ mode, onExit }: { mode: ExperimentMode; onExi
               <p className="text-center font-display text-sm font-extrabold text-foreground animate-pulse">
                 Tap the potato to lock color!
               </p>
+            </div>
+          )}
+
+          {/* Calibration color swatch — shown after successful tap, persists during experiment */}
+          {calibratedColor && status !== "calibrating" && (
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-xl border-2 border-foreground bg-cream px-2.5 py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,1)]">
+              <div
+                className="h-5 w-5 rounded-md border-2 border-foreground flex-shrink-0"
+                style={{ backgroundColor: `rgb(${calibratedColor.r},${calibratedColor.g},${calibratedColor.b})` }}
+              />
+              <span className="font-mono text-[10px] font-extrabold uppercase text-foreground">
+                LOCKED
+              </span>
             </div>
           )}
 
