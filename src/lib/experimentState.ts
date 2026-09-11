@@ -19,10 +19,10 @@ export interface ExperimentResult {
   actualValue: number; // cm or degrees
   error: number; // difference
   accuracyScore: number; // 0-100
-  mood?: PotatoMood;
-  moodExplanation?: string;
-  failed?: boolean;
-  failureReason?: string;
+  mood?: PotatoMood | undefined;
+  moodExplanation?: string | undefined;
+  failed?: boolean | undefined;
+  failureReason?: string | undefined;
 }
 
 import { useState, useEffect, useCallback } from "react";
