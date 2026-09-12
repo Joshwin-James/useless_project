@@ -4,7 +4,7 @@
 
 > *Flick it. Spin it. Read its mood. Welcome to the world's first potato physics lab.*
 
-**Live Site:** [potaaa.vercel.app](https://uselessproject-cyan.vercel.app/https://potaaa.vercel.app)
+**Live Site:** [potaaa.vercel.app](https://uselessproject-cyan.vercel.app/)
 
 ---
 
