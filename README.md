@@ -1,6 +1,6 @@
 <img width="1280" height="640" alt="git (1)" src="https://github.com/user-attachments/assets/8920b256-2ba8-4988-b824-5351134eb4bd" />
 
-# 🥔 Potato Palooza — The Spud Science Lab 🎯
+# 🥔 Potaa.to 
 
 > *Flick it. Spin it. Read its mood. Welcome to the world's first potato physics lab.*
 
@@ -22,7 +22,7 @@ No servers. No AI APIs. Just pure client-side physics and vision.
 Humanity has spent centuries calculating planetary orbits, quantum particle trajectories, and aerodynamic drag coefficients — yet modern science has completely overlooked the empirical physics of a russet potato flicked across an office desk. Potato enthusiasts and armchair physicists have been left without scientific measurement tools to validate their desk-flicking accuracy and rotational RPM.
 
 ### The Solution (that nobody asked for)
-Potato Palooza: a full-featured, zero-latency desktop laboratory engineered specifically for tuber mechanics. By combining real-time camera color calibration, flood-fill blob tracking, asymmetric surface landmark detection, and exponential moving average (EMA) deceleration modeling, Potato Palooza finally brings rigorous quantitative analysis to potato flicking and spinning.
+Potaa.to: a full-featured, zero-latency desktop laboratory engineered specifically for tuber mechanics. By combining real-time camera color calibration, flood-fill blob tracking, asymmetric surface landmark detection, and exponential moving average (EMA) deceleration modeling, Potato Palooza finally brings rigorous quantitative analysis to potato flicking and spinning.
 
 ---
 
