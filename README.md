@@ -1,113 +1,110 @@
 <img width="1280" height="640" alt="git (1)" src="https://github.com/user-attachments/assets/8920b256-2ba8-4988-b824-5351134eb4bd" />
 
-# 🥔 Potaa.to 
 
-> *Flick it. Spin it. Read its mood. Welcome to the world's first potato physics lab.*
 
-**Live Site:** [potaaa.vercel.app](https://uselessproject-cyan.vercel.app/)
+# [Project Name] 🎯
 
----
 
 ## Basic Details
+### Team Name: [Name]
+
 
 ### Team Members
-- **Team Lead:** Joshwin James
-- **Team Member** Christwin Soy Jose
+- Team Lead: [Name] - [College]
+- Member 2: [Name] - [College]
+- Member 3: [Name] - [College]
 
 ### Project Description
-Potaa.to is an interactive web experiment where you use your phone or laptop camera to track a **real potato** on your desk. It uses browser-native computer vision to detect the potato, track its movement and rotation, and predict where it'll end up — all in real-time, all in the browser.
-
-No servers. No AI APIs. Just pure client-side physics and vision.
+[2-3 lines about what your project does]
 
 ### The Problem (that doesn't exist)
-Humanity has spent centuries calculating planetary orbits, quantum particle trajectories, and aerodynamic drag coefficients — yet modern science has completely overlooked the empirical physics of a russet potato flicked across an office desk. Potato enthusiasts and armchair physicists have been left without scientific measurement tools to validate their desk-flicking accuracy and rotational RPM.
+[What ridiculous problem are you solving?]
 
 ### The Solution (that nobody asked for)
-Potaa.to: a full-featured, zero-latency desktop laboratory engineered specifically for tuber mechanics. By combining real-time camera color calibration, flood-fill blob tracking, asymmetric surface landmark detection, and exponential moving average (EMA) deceleration modeling, Potato Palooza finally brings rigorous quantitative analysis to potato flicking and spinning.
-
----
-
-## 🎮 Three Modes
-
-### 🫸 Push Mode
-Flick your potato across the desk. The app tracks its trajectory, predicts where it'll stop, and scores your flick accuracy. Uses exponential moving average (EMA) deceleration modeling for real-time stopping-point prediction.
-
-### 🌀 Spin Mode  
-Give your potato a spin. The app tracks angular velocity (RPM), predicts the final resting angle, and measures rotational deceleration. Features unwrapped angle tracking across the 360°↔0° boundary.
-
-### 😊 Mood Potato
-Hold your potato up to the camera. The app scans its surface features and "reads" the potato's mood — from Chill to Chaotic. It's dumb. It's fun. It's a potato.
-
----
+[How are you solving it? Keep it fun!]
 
 ## Technical Details
+### Technologies/Components Used
+For Software:
+- [Languages used]
+- [Frameworks used]
+- [Libraries used]
+- [Tools used]
 
-### Technologies / Stack
+For Hardware:
+- [List main components]
+- [List specifications]
+- [List tools required]
 
-| Layer | Tech |
-|-------|------|
-| **Framework** | [TanStack Start](https://tanstack.com/start) + React 19 |
-| **Build System** | Vite 8 + Nitro |
-| **Styling** | Tailwind CSS 4 + Radix UI primitives + Lucide Icons |
-| **Vision** | Raw HTML5 Canvas API (Color segmentation, HSV blob tracking, centroid calculation) |
-| **Physics Engine** | Custom TypeScript engine (EMA deceleration, angle unwrapping, circular error estimation) |
-| **Deployment** | Vercel |
+### Implementation
+For Software:
+# Installation
+[commands]
 
----
+# Run
+[commands]
 
-## Implementation
+### Project Documentation
+For Software:
 
-### Installation
+# Screenshots (Add at least 3)
+<a>
+    <img src="img2.png" alt="Live Demo" width="800"/>
+  </a>
+*Add caption explaining what this shows*
 
-```bash
-# Clone the repository
-git clone https://github.com/Joshwin-James/useless_project.git
-cd useless_project
+![Screenshot2]
+<a>
+    <img src="img1.png" alt="Live Demo" width="800"/>
+  </a>
+*Add caption explaining what this shows*
 
-# Install dependencies
-npm install
-```
+![Screenshot3]
+<a>
+    <img src="img3.png" alt="Live Demo" width="800"/>
+  </a>
+*Add caption explaining what this shows*
 
-### Run
+# Diagrams
+![Workflow](Add your workflow/architecture diagram here)
+*Add caption explaining your workflow*
 
-```bash
-# Start development server
-npm run dev
+For Hardware:
 
-# Build for production
-npm run build
+# Schematic & Circuit
+![Circuit](Add your circuit diagram here)
+*Add caption explaining connections*
 
-# Preview production build
-npm run preview
-```
+![Schematic](Add your schematic diagram here)
+*Add caption explaining the schematic*
 
----
+# Build Photos
+![Components](Add photo of your components here)
+*List out all components shown*
 
-## 🔬 How It Works
+![Build](Add photos of build process here)
+*Explain the build steps*
 
-### Computer Vision (`src/lib/vision.ts`)
-- **Flood-fill blob detection:** Finds the potato by color in HSV space with adaptive thresholding.
-- **Asymmetric feature tracking:** Locates dark spots (eyes, blemishes) on the potato surface to monitor rotational orientation.
-- **Elliptical boundary constraints:** Prevents detector drift onto table shadows or background objects.
+![Final](Add photo of final product here)
+*Explain the final build*
 
-### Physics Engine (`src/lib/physics.ts`)
-- **Angle unwrapping:** Handles continuous rotation across the 360°↔0° boundary without discontinuities.
-- **EMA-based deceleration:** Forecasts stopping coordinates in real-time.
-- **Circular error calculations:** Modular error computation for orientation targets.
-- **Peak RPM & velocity tracking:** Separates translational motion from rotational dynamics.
+### Project Demo
+# Video
+[Add your demo video link here]
+*Explain what the video demonstrates*
 
-### Calibration
-Before each experiment, tap the potato in the camera feed to calibrate its color. A locked color swatch confirms calibration, allowing the vision system to adapt to any potato variety and lighting condition.
-
----
+# Additional Demos
+[Add any extra demo materials/links]
 
 ## Team Contributions
-- **Joshwin James**: physics engine modeling, UI/UX implementation, and deployment.
--**Christwin Soy Jose**: Concept design, computer vision algorithms.
+- [Name 1]: [Specific contributions]
+- [Name 2]: [Specific contributions]
+- [Name 3]: [Specific contributions]
 
 ---
-
-Made with ❤️ at TinkerHub Useless Projects
+Made with ❤️ at TinkerHub Useless Projects 
 
 ![Static Badge](https://img.shields.io/badge/TinkerHub-24?color=%23000000&link=https%3A%2F%2Fwww.tinkerhub.org%2F)
 ![Static Badge](https://img.shields.io/badge/UselessProjects--26-26?link=https%3A%2F%2Ftinkerhub.org%2Fevents%2F1M8ORET9A1%2Fuseless-projects-3.0)
+
+
