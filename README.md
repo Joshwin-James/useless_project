@@ -14,7 +14,7 @@
 - **Team Lead:** Joshwin James
 
 ### Project Description
-Potato Palooza is an interactive web experiment where you use your phone or laptop camera to track a **real potato** on your desk. It uses browser-native computer vision to detect the potato, track its movement and rotation, and predict where it'll end up — all in real-time, all in the browser.
+Potaa.to is an interactive web experiment where you use your phone or laptop camera to track a **real potato** on your desk. It uses browser-native computer vision to detect the potato, track its movement and rotation, and predict where it'll end up — all in real-time, all in the browser.
 
 No servers. No AI APIs. Just pure client-side physics and vision.
 
