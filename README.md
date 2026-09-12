@@ -12,6 +12,7 @@
 
 ### Team Members
 - **Team Lead:** Joshwin James
+- **Team Member** Christwin Soy Jose
 
 ### Project Description
 Potaa.to is an interactive web experiment where you use your phone or laptop camera to track a **real potato** on your desk. It uses browser-native computer vision to detect the potato, track its movement and rotation, and predict where it'll end up — all in real-time, all in the browser.
@@ -101,7 +102,8 @@ Before each experiment, tap the potato in the camera feed to calibrate its color
 ---
 
 ## Team Contributions
-- **Joshwin James**: Concept design, computer vision algorithms, physics engine modeling, UI/UX implementation, and deployment.
+- **Joshwin James**: physics engine modeling, UI/UX implementation, and deployment.
+-**Christwin Soy Jose**: Concept design, computer vision algorithms.
 
 ---
 
