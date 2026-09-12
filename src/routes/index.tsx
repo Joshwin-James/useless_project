@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/accordion";
 import { PotatoEyes } from "@/components/PotatoEyes";
 import { ExperimentRunner } from "@/components/ExperimentRunner";
-import { ExperimentMode } from "@/lib/experimentState";
+import { ExperimentMode, getFastestSpinTrophy } from "@/lib/experimentState";
 import potatoHero from "@/assets/potato-hero.png";
 import potatoCrew from "@/assets/potato-crew.png";
 import potatoDigger from "@/assets/potato-digger.png";
@@ -102,6 +102,12 @@ function Index() {
   const [tilt, setTilt] = useState(0);
   const [isExperimenting, setIsExperimenting] = useState(false);
   const [experimentMode, setExperimentMode] = useState<ExperimentMode>("push");
+  const [fastestSpin, setFastestSpin] = useState<number | null>(null);
+
+  useEffect(() => {
+    const trophy = getFastestSpinTrophy();
+    if (trophy) setFastestSpin(trophy.peakRPM);
+  }, [isExperimenting]);
 
   useEffect(() => {
     const onScroll = () => setTilt(Math.sin(window.scrollY / 320) * 3);
@@ -277,13 +283,19 @@ function Index() {
           <p className="mt-3 font-medium">
             Last night&apos;s tabletop run. No potatoes complained.
           </p>
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 pct: "1.42 m/s",
                 label: "LAUNCH SPEED",
                 note: "one confident thumb push",
                 bg: "bg-butter",
+              },
+              {
+                pct: fastestSpin ? `${fastestSpin.toFixed(0)} RPM` : "168 RPM",
+                label: "FASTEST SPIN 🏆",
+                note: fastestSpin ? "all-time tabletop speed trophy" : "current lab trophy record",
+                bg: "bg-spud",
               },
               {
                 pct: "0.38 µ",
@@ -299,7 +311,7 @@ function Index() {
               },
             ].map((c, i) => (
               <Reveal key={c.label} delay={i * 110}>
-                <Sticker className={c.bg} rotate={i === 1 ? 1.5 : i === 0 ? -2 : 2}>
+                <Sticker className={c.bg} rotate={i === 1 ? 1.5 : i === 0 ? -2 : i === 2 ? 2 : -1}>
                   <div className="font-display text-4xl font-extrabold">{c.pct}</div>
                   <div className="mt-1 font-display text-xl font-extrabold uppercase">
                     {c.label}

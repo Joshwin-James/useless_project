@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ExperimentResult, useExperimentHistory } from "@/lib/experimentState";
+import { ExperimentResult, FastestSpinTrophy } from "@/lib/experimentState";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -9,6 +9,7 @@ interface ResultsDashboardProps {
   history: ExperimentResult[];
   onRestart: () => void;
   onClearHistory: () => void;
+  trophy?: FastestSpinTrophy | null;
 }
 
 export function ResultsDashboard({
@@ -16,6 +17,7 @@ export function ResultsDashboard({
   history,
   onRestart,
   onClearHistory,
+  trophy,
 }: ResultsDashboardProps) {
   const isPush = latestResult.mode === "push";
   const isMood = latestResult.mode === "mood";
@@ -156,6 +158,37 @@ export function ResultsDashboard({
         </div>
       )}
 
+      {/* Fastest Spinning Potato Trophy Showcase */}
+      {trophy && (
+        <div className="sticker mx-auto mt-10 max-w-2xl overflow-hidden border-4 border-foreground bg-butter p-6 text-center shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-left">
+              <span className="text-5xl wobble shrink-0">🏆</span>
+              <div>
+                <span className="sticker inline-block bg-bubblegum px-2.5 py-0.5 text-xs font-extrabold uppercase text-foreground">
+                  HALL OF FAME RECORD
+                </span>
+                <h3 className="font-display text-2xl sm:text-3xl font-extrabold uppercase text-foreground leading-tight mt-1">
+                  FASTEST SPINNING POTATO
+                </h3>
+                <p className="text-xs font-semibold text-foreground/80 mt-0.5">
+                  Certified tabletop centripetal champion. Recorded on{" "}
+                  {new Date(trophy.timestamp).toLocaleDateString()}.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-2xl border-2 border-foreground bg-cream px-5 py-3 text-center shadow-[3px_3px_0_0_rgba(0,0,0,1)] shrink-0">
+              <div className="font-display text-3xl sm:text-4xl font-extrabold text-foreground">
+                {trophy.peakRPM.toFixed(0)} <span className="text-lg">RPM</span>
+              </div>
+              <div className="font-mono text-[10px] font-bold uppercase text-muted-foreground">
+                ALL-TIME RECORD
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Potato Archives */}
       <div className="mt-16 rounded-3xl border-4 border-foreground bg-cream p-8">
         <div className="mb-6 flex items-center justify-between">
@@ -183,13 +216,18 @@ export function ResultsDashboard({
                 key={r.id}
                 className="flex flex-col justify-between border-4 border-foreground bg-background p-4 sm:flex-row sm:items-center"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3">
                   <Badge className="bg-foreground text-background text-lg font-extrabold">
                     #{history.length - i}
                   </Badge>
                   <span className="font-display text-xl font-extrabold uppercase text-foreground">
                     {r.mode === "mood" ? "MOOD POTATO" : `${r.mode} MODE`}
                   </span>
+                  {(r.id === trophy?.id || r.isTrophyWinner) && (
+                    <Badge className="border-2 border-foreground bg-butter text-foreground font-extrabold uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] animate-pulse">
+                      🏆 FASTEST SPUD
+                    </Badge>
+                  )}
                 </div>
 
                 {r.mode === "mood" ? (

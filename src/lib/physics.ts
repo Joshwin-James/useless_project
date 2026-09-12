@@ -85,3 +85,23 @@ export function predictStoppingAmount(currentVelocity: number, deceleration: num
 export function degreesPerSecToRPM(degPerSec: number): number {
   return (degPerSec / 360) * 60;
 }
+
+export function rpmToDegreesPerSec(rpm: number): number {
+  return (rpm / 60) * 360;
+}
+
+/**
+ * Clamps physical tabletop angular velocity to realistic hand-spin limits (default 320 RPM).
+ * Spurious single-frame sensor jumps will be rejected.
+ */
+export function clampPhysicalRPM(rpm: number, maxRPM: number = 320): number {
+  return Math.max(0, Math.min(maxRPM, rpm));
+}
+
+/**
+ * Deadband threshold to eliminate pixel-quantization jitter when the potato is stationary.
+ */
+export function applyDeadband(val: number, threshold: number = 16): number {
+  return Math.abs(val) < threshold ? 0 : val;
+}
+

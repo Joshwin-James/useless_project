@@ -16,6 +16,8 @@ import {
   estimateDeceleration,
   predictStoppingAmount,
   degreesPerSecToRPM,
+  clampPhysicalRPM,
+  applyDeadband,
 } from "@/lib/physics";
 import { Badge } from "./ui/badge";
 import { ResultsDashboard } from "./ResultsDashboard";
@@ -86,8 +88,9 @@ export function ExperimentRunner({
   const [scanProgress, setScanProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [calibratedColor, setCalibratedColor] = useState<RGB | null>(null);
+  const [isDetected, setIsDetected] = useState<boolean>(false);
 
-  const { history, addResult, clearHistory } = useExperimentHistory();
+  const { history, addResult, clearHistory, trophy } = useExperimentHistory();
 
   // ── Refs (never cause re-renders) ──────────────────────────────────────────
   const streamRef = useRef<MediaStream | null>(null);
@@ -112,6 +115,7 @@ export function ExperimentRunner({
   const blobFoundRef = useRef<boolean>(false);
   const frozenPredictedAngleRef = useRef<number | null>(null); // frozen early in spin
   const targetColorRef = useRef<RGB | null>(null);
+  const prevFeatureRef = useRef<{ x: number; y: number } | null>(null);
 
   // Mirror status/mode into refs for RAF callback
   const modeRef = useRef(currentMode);
@@ -155,6 +159,7 @@ export function ExperimentRunner({
     lastKnownCentroidRef.current = null;
     blobFoundRef.current = false;
     frozenPredictedAngleRef.current = null;
+    prevFeatureRef.current = null;
   }, []);
 
   // ── Camera init ────────────────────────────────────────────────────────────
@@ -513,9 +518,17 @@ export function ExperimentRunner({
             }
           } else if (modeRef.current === "spin") {
             // ── SPIN MODE: Distinct Asymmetric Reference Point ──────────
-            const feature = findAsymmetricFeature(imageData, W, blob.box, blob.centroid);
+            const feature = findAsymmetricFeature(
+              imageData,
+              W,
+              blob.box,
+              blob.centroid,
+              prevFeatureRef.current
+            );
 
             if (feature) {
+              prevFeatureRef.current = { ...feature };
+
               // Line: centroid → reference point
               ctx.strokeStyle = "#facc15";
               ctx.lineWidth = 3 * sp;
@@ -542,12 +555,22 @@ export function ExperimentRunner({
 
                 // Angular velocity with minimum-dt guard and outlier rejection
                 if (dt >= 0.008) {
-                  let angularVel = Math.abs((unwrapped - prevAngleRef.current) / dt);
-                  // Clamp spikes (max 3600 deg/s = 600 RPM)
-                  if (angularVel > 3600) {
-                    angularVel = emaVelocityRef.current;
+                  const rawDelta = Math.abs(unwrapped - prevAngleRef.current);
+                  // Deadband: small micro-jitter (< 1.8 deg) between frames is quantization noise
+                  let angularVel = 0;
+                  if (rawDelta >= 1.8) {
+                    angularVel = rawDelta / dt;
                   }
-                  currentVelocity = calculateEMA(angularVel, emaVelocityRef.current, 0.3);
+
+                  // Outlier rejection: if angular speed exceeds 320 RPM (1920 deg/s), reject the spike
+                  const rawRPM = degreesPerSecToRPM(angularVel);
+                  let clampedVel = angularVel;
+                  if (rawRPM > 320) {
+                    clampedVel = emaVelocityRef.current * 0.8;
+                  }
+
+                  currentVelocity = calculateEMA(clampedVel, emaVelocityRef.current, 0.25);
+                  currentVelocity = applyDeadband(currentVelocity, 12);
                   emaVelocityRef.current = currentVelocity;
                 }
               } else {
@@ -622,7 +645,7 @@ export function ExperimentRunner({
               ctx.textAlign = "start";
 
               // RPM tag above bounding box
-              const rpmVal = degreesPerSecToRPM(currentVelocity);
+              const rpmVal = clampPhysicalRPM(degreesPerSecToRPM(currentVelocity), 300);
               const tagH = 22 * sp;
               const tagY = Math.max(tagH, blob.box.minY - 4 * sp);
               ctx.fillStyle = "rgba(0,0,0,0.85)";
@@ -640,11 +663,11 @@ export function ExperimentRunner({
 
           if (statusRef.current === "ready") {
             if (isSpin) {
-              // Spin mode: start tracking as soon as calibrated & blob visible
-              if (targetColorRef.current !== null) {
+              // Spin mode: start tracking as soon as potato starts rotating OR calibrated
+              if (currentVelocity > 20 || (targetColorRef.current !== null && currentVelocity > 10)) {
                 setStatus("tracking");
                 dataLog.current = [];
-                peakValueRef.current = 0;
+                peakValueRef.current = currentVelocity;
                 stopDwellFrames.current = 0;
                 experimentStartTimeRef.current = now;
                 startCentroidRef.current = { ...blob.centroid };
@@ -654,7 +677,7 @@ export function ExperimentRunner({
               if (currentVelocity > 15) {
                 setStatus("tracking");
                 dataLog.current = [];
-                peakValueRef.current = 0;
+                peakValueRef.current = currentVelocity;
                 stopDwellFrames.current = 0;
                 experimentStartTimeRef.current = now;
                 startCentroidRef.current = { ...blob.centroid };
@@ -764,6 +787,8 @@ export function ExperimentRunner({
                 accuracy = Math.max(0, 100 - (error / Math.max(1, predicted)) * 100);
               }
 
+              const isTrophyWinner = isSpin && !isFailed && peak > 0 && (!trophy || peak > trophy.peakRPM);
+
               const res: ExperimentResult = {
                 id: Math.random().toString(36).substring(2, 11),
                 timestamp: Date.now(),
@@ -775,6 +800,7 @@ export function ExperimentRunner({
                 accuracyScore: Math.round(accuracy * 10) / 10,
                 failed: isFailed,
                 failureReason,
+                isTrophyWinner,
               };
 
               setResult(res);
@@ -786,13 +812,20 @@ export function ExperimentRunner({
             }
           }
         }
+      } else {
+        blobFoundRef.current = false;
+        prevFeatureRef.current = null;
+        emaVelocityRef.current = calculateEMA(0, emaVelocityRef.current, 0.25);
+        if (emaVelocityRef.current < 2) emaVelocityRef.current = 0;
+        currentVelocity = 0;
       }
 
       // ── Throttled React UI update ──────────────────────────────────────────
       if (now - lastUiUpdateRef.current > 100) {
+        setIsDetected(blobFoundRef.current);
         const rpm =
           modeRef.current === "spin"
-            ? degreesPerSecToRPM(currentVelocity)
+            ? clampPhysicalRPM(degreesPerSecToRPM(currentVelocity), 300)
             : currentVelocity;
         setLiveRPM(rpm);
 
@@ -809,7 +842,7 @@ export function ExperimentRunner({
 
     lastTimeRef.current = now;
     rafRef.current = requestAnimationFrame(tick);
-  }, [addResult, cleanup]);
+  }, [addResult, cleanup, trophy]);
 
   // ── RAF lifecycle ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -836,6 +869,7 @@ export function ExperimentRunner({
         history={history}
         onRestart={handleRestart}
         onClearHistory={clearHistory}
+        trophy={trophy}
       />
     );
   }
@@ -843,12 +877,13 @@ export function ExperimentRunner({
   // ── Instruction text per state/mode ────────────────────────────────────────
   const getInstruction = (): string | null => {
     if (status === "calibrating") return "Tap your potato on the camera to lock its color";
-    if (!calibratedColor && status === "ready") return "Tap CALIBRATE then tap your potato on screen";
-    if (calibratedColor && status === "ready" && currentMode === "push")
-      return "Shove the potato! Tracking starts on movement.";
-    if (calibratedColor && status === "ready" && currentMode === "spin")
-      return "Starting 8s tracking window... Spin the spud!";
-    if (status === "tracking" && currentMode === "spin") return null;
+    if (status === "ready") {
+      if (!isDetected) return "Position your potato in view of the camera";
+      if (currentMode === "push") return "Potato locked! Shove it to track motion!";
+      if (currentMode === "spin") return "Potato locked! Give the spud a solid spin!";
+      if (currentMode === "mood") return "Potato locked! Analyzing bio-starch...";
+    }
+    if (status === "tracking" && currentMode === "spin") return "Spinning! Tracking physical rotation...";
     if (status === "tracking" && currentMode === "push") return "Keep it rolling!";
     return null;
   };
@@ -994,6 +1029,31 @@ export function ExperimentRunner({
             </div>
           )}
 
+          {/* Potato Detection Status Badge — Top Center */}
+          <div className="pointer-events-none absolute top-2.5 inset-x-0 mx-auto w-max z-10">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border-2 border-foreground px-3 py-1 font-display text-[10px] sm:text-xs font-extrabold uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-colors ${
+                isDetected ? "bg-leaf text-foreground" : "bg-cream/90 text-muted-foreground"
+              }`}
+            >
+              <span
+                className="h-2 w-2 rounded-full border border-foreground"
+                style={{ backgroundColor: isDetected ? "#16a34a" : "#eab308" }}
+              />
+              {isDetected ? "POTATO DETECTED" : "SEARCHING FOR POTATO"}
+            </span>
+          </div>
+
+          {/* Fastest Spinning Potato Trophy Chip — Top Right (Spin Mode) */}
+          {currentMode === "spin" && trophy && (
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 flex items-center gap-1.5 rounded-full border-2 border-foreground bg-butter px-3 py-1 text-xs font-extrabold shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+              <span className="text-sm">🏆</span>
+              <span className="font-display text-[10px] sm:text-xs font-extrabold uppercase text-foreground">
+                FASTEST: {trophy.peakRPM.toFixed(0)} RPM
+              </span>
+            </div>
+          )}
+
           {/* Mood scanning beam */}
           {status === "scanning" && (
             <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden w-full h-full">
@@ -1136,6 +1196,26 @@ export function ExperimentRunner({
                         ? "Here's how our angular telemetry held up against physical reality:"
                         : "The real potato has landed. Here's how our trajectory held up:"}
                   </p>
+
+                  {/* Trophy celebration or record showcase */}
+                  {currentMode === "spin" && !result.failed && (
+                    result.isTrophyWinner ? (
+                      <div className="mt-3 rounded-2xl border-4 border-foreground bg-butter p-3 sm:p-4 text-center shadow-[4px_4px_0_0_rgba(0,0,0,1)] animate-bounce">
+                        <div className="text-3xl sm:text-4xl">🏆 🥔 ⚡</div>
+                        <h4 className="font-display text-base sm:text-xl font-extrabold uppercase text-foreground mt-1">
+                          NEW RECORD! FASTEST SPINNING POTATO!
+                        </h4>
+                        <p className="text-xs sm:text-sm font-bold text-foreground/90 mt-0.5">
+                          Blistering {result.peakValue.toFixed(0)} RPM! The Golden Tuber Trophy is yours!
+                        </p>
+                      </div>
+                    ) : trophy ? (
+                      <div className="mt-3 flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-cream px-3 py-1.5 text-xs font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                        <span className="text-base">🏆</span>
+                        <span>Current Trophy Record: <strong className="font-display">{trophy.peakRPM.toFixed(0)} RPM</strong></span>
+                      </div>
+                    ) : null
+                  )}
 
                   {/* Two metric boxes */}
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
